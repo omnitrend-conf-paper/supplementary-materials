@@ -1,0 +1,52 @@
+{
+  "TSLA": {
+    "article_count": 13,
+    "correlation": {
+      "correlation": -0.44698365741361307,
+      "correlation_strength": "moderate_negative",
+      "data_points": 3,
+      "lag_hours": 0,
+      "sentiment_stats": {
+        "mean": 0.20833333333333334,
+        "std": 0.3145764348029479,
+        "min": 0.0,
+        "max": 0.75
+      },
+      "price_change_stats": {
+        "mean": 5.638425407792077,
+        "std": 5.867502733309397,
+        "min": 0.38636951475221887,
+        "max": 13.828023625314149
+      }
+    },
+    "backtest": {
+      "initial_capital": 10000,
+      "final_value": 10027.008830833098,
+      "total_return_pct": 0.2700883083309782,
+      "buy_hold_return_pct": 17.35406063890976,
+      "outperformance": -17.08397233057878,
+      "num_trades": 2,
+      "trades": [
+        {
+          "timestamp": "2025-12-11T00:00:00",
+          "action": "BUY",
+          "price": 446.8900146484375,
+          "shares": 2.237687053237667
+        },
+        {
+          "timestamp": "2025-12-12T00:00:00",
+          "action": "SELL",
+          "price": 458.9599914550781,
+          "shares": 2.237687053237667
+        }
+      ]
+    },
+    "latest_signal": {
+      "timestamp": "2025-12-12T00:00:00",
+      "signal": "SELL",
+      "sentiment_score": 0.0,
+      "price": 458.9599914550781,
+      "article_count": 3
+    }
+  }
+}

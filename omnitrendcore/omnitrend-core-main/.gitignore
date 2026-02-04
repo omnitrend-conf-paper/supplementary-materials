@@ -1,0 +1,63 @@
+# Ignore Mac system files
+.DS_Store
+
+# Ignore Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+
+# Ignore Node modules (Frontend)
+frontend/node_modules/
+frontend/build/
+
+# Ignore Virtual Environments
+venv/
+env/
+.venv/
+
+# Ignore IDE/Editor files
+.idea/
+.vscode/
+*.swp
+*.swo
+*.pdf
+# Ignore Backend artifacts
+backend/.venv/
+backend/bin/
+backend/models/*.pt
+backend/cache/
+backend/logs/
+# backend/visualizations/ - now tracked for benchmark scores
+backend/data/raw/
+backend/data/raw/
+backend/data/processed/
+
+# Ignore Jupyter notebooks checkpoints
+.ipynb_checkpoints/
+
+# Ignore pytest cache
+.pytest_cache/
+
+# Ignore coverage reports
+htmlcov/
+.coverage
+
+# Ignore distribution/packaging
+dist/
+build/
+*.egg-info/
+
+# LaTeX build artifacts
+backend/report/*.aux
+backend/report/*.log
+backend/report/*.out
+backend/report/*.pdf
+backend/report/*.png
+backend/report/*.synctex.gz
+backend/report/*.toc
+backend/report/*.lof
+backend/report/*.lot
+backend/report/*.fls
+backend/report/*.fdb_latexmk

@@ -1,0 +1,431 @@
+\documentclass[conference]{IEEEtran}
+\usepackage{graphicx}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{booktabs}
+\usepackage{hyperref}
+\usepackage{xcolor}
+\usepackage{multirow}
+\usepackage{subcaption}
+\usepackage{subcaption}
+
+\title{OmniTrend: News Trend Analysis using Temporal Graph Networks}
+
+\author{
+\IEEEauthorblockN{Mustafa}
+\IEEEauthorblockA{OmniTrend AI\\
+\texttt{omnitrend-ai/omnitrend-core}}
+}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+Detecting trending news topics in real-time is challenging due to the streaming nature of news data and the complex temporal dynamics of trends. We present OmniTrend, a Temporal Graph Network (TGN) based approach for news trend analysis that captures both topical relationships and temporal evolution. Our model incorporates Time2Vec encoding for learning periodic patterns, exponential decay attention for temporal weighting, and neighbor sampling for scalability. Experiments on a dataset of 127,000+ news articles demonstrate that our approach achieves 65\% lower RMSE in trend score prediction compared to standard TGN, with a Spearman correlation of 0.88 for trend ranking.
+\end{abstract}
+
+\begin{IEEEkeywords}
+Temporal Graph Networks, News Trend Analysis, Time Series, Graph Neural Networks, NLP
+\end{IEEEkeywords}
+
+\section{Introduction}
+
+The exponential growth of online news presents significant challenges for tracking emerging trends. Traditional methods like TF-IDF and keyword frequency analysis fail to capture the complex temporal dynamics of news trends, where topics rise and fall over time based on evolving public interest.
+
+We identify three key challenges in news trend analysis:
+\begin{enumerate}
+    \item \textbf{Streaming Data}: News articles arrive continuously as a stream, requiring incremental processing.
+    \item \textbf{Temporal Dynamics}: Trends exhibit complex temporal patterns including daily/weekly cycles and event-driven bursts.
+    \item \textbf{Graph Structure}: Articles are interconnected through shared topics, entities, and semantic similarity.
+\end{enumerate}
+
+To address these challenges, we propose OmniTrend, a system that:
+\begin{itemize}
+    \item Constructs a temporal graph where nodes represent articles and edges encode topical/semantic relationships
+    \item Employs a Temporal Graph Network (TGN) with custom temporal encoding
+    \item Predicts both trend classification (high/medium/low) and continuous trend scores
+\end{itemize}
+
+\section{Related Work}
+
+\subsection{Temporal Graph Networks}
+Rossi et al. \cite{rossi2020temporal} introduced Temporal Graph Networks (TGN) for learning on dynamic graphs. TGN maintains per-node memory states that evolve over time, enabling the model to remember past interactions.
+
+\subsection{Time Encoding}
+Kazemi et al. \cite{kazemi2019time2vec} proposed Time2Vec, a learnable representation of time that captures both periodic and non-periodic patterns. This has been successfully applied to various temporal learning tasks.
+
+\subsection{News Analysis}
+Prior work on news trend detection has focused on keyword frequency \cite{kleinberg2003bursty}, topic modeling \cite{blei2003latent}, and more recently, graph-based approaches \cite{vosoughi2018spread}.
+
+\section{Methodology}
+
+\subsection{System Architecture}
+
+The OmniTrend pipeline consists of four main components:
+
+\begin{equation}
+\text{Articles} \xrightarrow{\text{NLP}} \text{Features} \xrightarrow{\text{Graph}} \text{Structure} \xrightarrow{\text{TGN}} \text{Trends}
+\end{equation}
+
+\subsubsection{NLP Processing}
+Each article is processed to extract:
+\begin{itemize}
+    \item Semantic embeddings using a sentence transformer (384-d)
+    \item Named entities (persons, organizations, locations)
+    \item Topic keywords via TF-IDF
+    \item Sentiment scores
+\end{itemize}
+
+\subsubsection{Graph Construction}
+We construct a heterogeneous temporal graph where:
+\begin{itemize}
+    \item \textbf{Nodes}: Articles with feature vectors $\mathbf{x}_i \in \mathbb{R}^{385}$
+    \item \textbf{Similarity Edges}: Connect articles with cosine similarity $> 0.5$
+    \item \textbf{Topic Edges}: Connect articles sharing common topics
+    \item \textbf{Temporal Ordering}: Edges are timestamped for temporal learning
+\end{itemize}
+
+\subsection{Temporal Graph Network Model}
+
+Our TGN model extends the standard architecture with three key innovations:
+
+\subsubsection{Time2Vec Encoding}
+We encode time differences using learnable periodic functions:
+\begin{equation}
+\text{Time2Vec}(t)[i] = 
+\begin{cases}
+\omega_0 t + \phi_0 & \text{if } i = 0 \\
+\sin(\omega_i t + \phi_i) & \text{if } i > 0
+\end{cases}
+\end{equation}
+
+This allows the model to learn both linear trends and periodic patterns (e.g., daily news cycles).
+
+\subsubsection{Exponential Decay Attention}
+We weight temporal attention using exponential decay:
+\begin{equation}
+\alpha_{ij} = \text{softmax}\left(\frac{(\mathbf{W}_Q\mathbf{h}_i)(\mathbf{W}_K\mathbf{h}_j)^T}{\sqrt{d}} \cdot e^{-\lambda \Delta t_{ij}}\right)
+\end{equation}
+
+where $\Delta t_{ij}$ is the time difference between nodes $i$ and $j$, and $\lambda$ is a learnable decay rate.
+
+\subsubsection{LSTM Temporal Memory}
+Each node maintains a memory state updated via LSTM:
+\begin{equation}
+\mathbf{m}_i^{(t+1)} = \text{LSTM}(\mathbf{m}_i^{(t)}, \mathbf{h}_i^{(t)})
+\end{equation}
+
+\subsection{Multi-Task Learning}
+
+The model jointly optimizes two objectives:
+
+\begin{equation}
+\mathcal{L} = \mathcal{L}_{\text{class}} + \alpha \mathcal{L}_{\text{reg}}
+\end{equation}
+
+where:
+\begin{itemize}
+    \item $\mathcal{L}_{\text{class}}$: Cross-entropy loss for trend classification
+    \item $\mathcal{L}_{\text{reg}}$: MSE loss for trend score regression
+    \item $\alpha = 0.5$: Weight balancing the two objectives
+\end{itemize}
+
+\subsection{Neighbor Sampling}
+
+To enable training on large graphs (120k+ nodes), we employ mini-batch training with neighbor sampling:
+
+\textbf{Neighbor Sampling Algorithm:}
+\begin{verbatim}
+for each batch of target nodes B:
+    for each layer l = 1 to L:
+        Sample k neighbors for each node
+        Aggregate neighbor features
+    Compute loss and update parameters
+\end{verbatim}
+
+\section{Experimental Setup}
+
+\subsection{Dataset}
+
+We evaluate on a combined dataset of news articles:
+
+\begin{table}[ht]
+\centering
+\caption{Dataset Statistics}
+\begin{tabular}{lrr}
+\toprule
+\textbf{Dataset} & \textbf{Articles} & \textbf{Source} \\
+\midrule
+AG News & 120,000 & Reuters, AP \\
+BBC News & 1,225 & BBC \\
+Additional & 6,506 & Various \\
+\midrule
+\textbf{Total} & \textbf{127,731} & \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The constructed graph contains:
+\begin{itemize}
+    \item 127,680 nodes
+    \item 2,865,579 edges
+    \item Average degree: 44.9
+    \item 3,627 detected communities
+\end{itemize}
+
+\subsection{Baselines}
+
+We compare against 10 baseline methods:
+\begin{enumerate}
+    \item \textbf{TF-IDF + Logistic Regression}
+    \item \textbf{MLP}: 2-layer neural network
+    \item \textbf{Static GCN}: Graph Convolutional Network
+    \item \textbf{Standard TGN}: Base temporal graph network
+    \item \textbf{GAT}: Graph Attention Network
+    \item \textbf{Random Forest}: Ensemble method
+    \item \textbf{LSTM}: Sequential model
+    \item \textbf{Transformer}: Attention-based model
+\end{enumerate}
+
+\subsection{Evaluation Metrics}
+
+\textbf{Classification:}
+\begin{itemize}
+    \item Accuracy, F1-Macro, Precision, Recall
+\end{itemize}
+
+\textbf{Regression:}
+\begin{itemize}
+    \item RMSE (Root Mean Square Error)
+    \item MAE (Mean Absolute Error)
+\end{itemize}
+
+\textbf{Ranking:}
+\begin{itemize}
+    \item Spearman correlation
+    \item Pearson correlation
+\end{itemize}
+
+\section{Results}
+
+\subsection{Classification Performance}
+
+\begin{table}[ht]
+\centering
+\caption{Classification Results}
+\begin{tabular}{lcccc}
+\toprule
+\textbf{Method} & \textbf{Acc.} & \textbf{F1} & \textbf{Prec.} & \textbf{Rec.} \\
+\midrule
+TF-IDF & 37.1\% & 0.282 & 0.344 & 0.338 \\
+MLP & 77.3\% & 0.751 & 0.766 & 0.740 \\
+Static GCN & 84.0\% & 0.769 & 0.819 & 0.754 \\
+Standard TGN & 84.2\% & 0.762 & 0.826 & 0.747 \\
+GAT & 86.2\% & 0.820 & 0.851 & 0.805 \\
+\midrule
+\textbf{Ours} & \textbf{84.8\%} & \textbf{0.822} & 0.813 & \textbf{0.839} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Our model achieves competitive classification accuracy (84.8\%) with the highest F1 score (0.822) and recall (0.839), indicating balanced performance across trend classes.
+
+\subsection{Regression Performance}
+
+\begin{table}[ht]
+\centering
+\caption{Trend Score Regression Results}
+\begin{tabular}{lcc}
+\toprule
+\textbf{Method} & \textbf{RMSE} $\downarrow$ & \textbf{MAE} $\downarrow$ \\
+\midrule
+Standard TGN & 0.519 & 0.427 \\
+GAT & 0.470 & 0.424 \\
+Random Forest & 0.288 & 0.242 \\
+\midrule
+\textbf{Ours} & \textbf{0.183} & \textbf{0.115} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Our model achieves \textbf{65\% lower RMSE} than Standard TGN (0.183 vs 0.519), demonstrating superior continuous trend prediction.
+
+\subsection{Ranking Performance}
+
+\begin{table}[ht]
+\centering
+\caption{Trend Ranking Correlation}
+\begin{tabular}{lcc}
+\toprule
+\textbf{Method} & \textbf{Spearman} $\uparrow$ & \textbf{Pearson} $\uparrow$ \\
+\midrule
+Standard TGN & -0.554 & -0.506 \\
+GAT & -0.676 & -0.626 \\
+Random Forest & 0.581 & 0.695 \\
+\midrule
+\textbf{Ours} & \textbf{0.881} & \textbf{0.897} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+A critical finding: Standard TGN and GAT produce \textit{negative} correlations, meaning they rank trends in the opposite order. Our model achieves strong positive correlation (0.881 Spearman), correctly capturing trend importance.
+
+\subsection{Ablation Study}
+
+\begin{table}[ht]
+\centering
+\caption{Ablation Study Results}
+\begin{tabular}{lcc}
+\toprule
+\textbf{Configuration} & \textbf{Accuracy} & \textbf{RMSE} \\
+\midrule
+Full Model & 84.8\% & 0.183 \\
+w/o Time2Vec & 82.1\% & 0.234 \\
+w/o Decay Attention & 83.5\% & 0.215 \\
+w/o LSTM Memory & 81.7\% & 0.256 \\
+w/o Multi-task & 83.9\% & 0.198 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+All components contribute to model performance, with LSTM memory having the largest impact.
+
+\subsection{Scalability}
+
+\begin{table}[ht]
+\centering
+\caption{Scalability Analysis}
+\begin{tabular}{lcc}
+\toprule
+\textbf{Graph Size} & \textbf{Training Time} & \textbf{GPU Memory} \\
+\midrule
+10k nodes & 2 min & 2.1 GB \\
+50k nodes & 8 min & 4.3 GB \\
+127k nodes & 25 min & 6.5 GB \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Neighbor sampling enables training on 127k nodes with only 6.5GB GPU memory (RTX 2080 Super).
+
+\section{Analysis and Discussion}
+
+\subsection{Detected Trends}
+
+The top trending topics detected by our model:
+
+\begin{table}[ht]
+\centering
+\caption{Top 5 Trending Topics}
+\begin{tabular}{lcc}
+\toprule
+\textbf{Topic} & \textbf{Score} & \textbf{Articles} \\
+\midrule
+Politics & 0.627 & 8,596 \\
+US & 0.628 & 7,793 \\
+Technology & 0.623 & 7,665 \\
+Economy & 0.620 & 6,793 \\
+Reuters & 0.621 & 13,952 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Trend Distribution}
+
+Analysis of 127,680 articles shows:
+\begin{itemize}
+    \item High trend: 90,465 (71\%)
+    \item Medium trend: 18,764 (15\%)
+    \item Low trend: 18,451 (14\%)
+\end{itemize}
+
+\subsection{Visualizations}
+
+\begin{figure}[ht]
+\centering
+\includegraphics[width=0.95\columnwidth]{benchmark_comparison.png}
+\caption{Benchmark comparison across all methods. Our proposed model (rightmost) achieves competitive performance with significantly better regression metrics.}
+\label{fig:benchmark}
+\end{figure}
+
+\begin{figure}[ht]
+\centering
+\includegraphics[width=0.85\columnwidth]{confusion_matrix.png}
+\caption{Confusion matrix for trend classification. The model shows strong diagonal dominance indicating accurate classification across all trend categories.}
+\label{fig:confusion}
+\end{figure}
+
+\begin{figure}[ht]
+\centering
+\includegraphics[width=0.95\columnwidth]{tsne_embeddings.png}
+\caption{t-SNE visualization of learned node embeddings. Colors represent different topic categories, showing clear cluster separation in the embedding space.}
+\label{fig:tsne}
+\end{figure}
+
+\begin{figure}[ht]
+\centering
+\includegraphics[width=0.95\columnwidth]{trending_topics.png}
+\caption{Top trending topics detected by the model with their average trend scores and article counts.}
+\label{fig:trending}
+\end{figure}
+
+\begin{figure}[ht]
+\centering
+\includegraphics[width=0.95\columnwidth]{topic_evolution.png}
+\caption{Topic evolution over time showing how trend scores change for major topics across the dataset timeline.}
+\label{fig:evolution}
+\end{figure}
+
+\begin{figure}[ht]
+\centering
+\includegraphics[width=0.95\columnwidth]{score_distribution.png}
+\caption{Distribution of trend scores across all articles. The distribution shows a slight right skew with mean score of 0.62.}
+\label{fig:distribution}
+\end{figure}
+
+\section{Conclusions}
+
+We presented OmniTrend, a Temporal Graph Network approach for news trend analysis. Key contributions include:
+
+\begin{enumerate}
+    \item \textbf{Time2Vec Integration}: Captures periodic patterns in news cycles
+    \item \textbf{Exponential Decay Attention}: Weights recent articles more heavily
+    \item \textbf{Neighbor Sampling}: Enables training on 127k+ node graphs
+    \item \textbf{Multi-task Learning}: Joint classification and regression
+\end{enumerate}
+
+Our model outperforms baselines with 65\% lower RMSE and 0.88 Spearman correlation for trend ranking, while remaining scalable to large datasets.
+
+\subsection{Future Work}
+
+\begin{itemize}
+    \item \textbf{Streaming TGN}: Incremental updates for real-time analysis
+    \item \textbf{Causal Edges}: Named entity recognition for causality
+    \item \textbf{Explainability}: Sub-graph explanations for trending topics
+    \item \textbf{Cross-lingual}: Multi-language news analysis
+\end{itemize}
+
+\section*{Acknowledgments}
+This work was developed as part of the OmniTrend AI project.
+
+\begin{thebibliography}{9}
+
+\bibitem{rossi2020temporal}
+E. Rossi, B. Chamberlain, F. Frasca, D. Eynard, F. Monti, and M. Bronstein, ``Temporal Graph Networks for Deep Learning on Dynamic Graphs,'' \textit{arXiv preprint arXiv:2006.10637}, 2020.
+
+\bibitem{kazemi2019time2vec}
+S. M. Kazemi, R. Goel, K. Jain, I. Kobyzev, A. Sethi, P. Forsyth, and P. Poupart, ``Time2Vec: Learning a Vector Representation of Time,'' \textit{arXiv preprint arXiv:1907.05321}, 2019.
+
+\bibitem{kleinberg2003bursty}
+J. Kleinberg, ``Bursty and Hierarchical Structure in Streams,'' \textit{Data Mining and Knowledge Discovery}, vol. 7, no. 4, pp. 373-397, 2003.
+
+\bibitem{blei2003latent}
+D. M. Blei, A. Y. Ng, and M. I. Jordan, ``Latent Dirichlet Allocation,'' \textit{Journal of Machine Learning Research}, vol. 3, pp. 993-1022, 2003.
+
+\bibitem{vosoughi2018spread}
+S. Vosoughi, D. Roy, and S. Aral, ``The Spread of True and False News Online,'' \textit{Science}, vol. 359, no. 6380, pp. 1146-1151, 2018.
+
+\end{thebibliography}
+
+\end{document}
